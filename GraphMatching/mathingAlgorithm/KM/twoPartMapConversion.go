@@ -30,8 +30,14 @@ func GraphMatch(uavs []*typeStruct.Uav, tasks []typeStruct.Task) (map[string]str
 	// 初分配：非时序任务和起始时序任务（type 0或1）
 	initialTasks := filterTasks(tasks, 0, 1)
 	doKM(uavs, initialTasks)
-	fmt.Println("初分配结果：", globalResult)
+	//fmt.Println("初分配结果如下：", globalResult)
+	//fmt.Println("初分配成功匹配数：", len(globalResult))
+	//fmt.Println("匹配结果：", globalResult)
+	//fmt.Println("初分配中未分配任务：", globalUnassigned)
+	//fmt.Println("初分配后无人机状态：")
+	//printUavs(uavs)
 	fmt.Println("---------------------初分配结束---------------------------")
+	fmt.Println()
 
 	fmt.Println("---------------------次分配开始---------------------------")
 	// 处理时序任务（type >=2）
@@ -71,11 +77,13 @@ func filterTasks(tasks []typeStruct.Task, types ...int) []typeStruct.Task {
 func doKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) {
 	//将待匹配任务排序：优先级越高越前，相同则需求越高越前
 	sort.Slice(tasks, func(i, j int) bool {
+
 		if tasks[i].Priority == tasks[j].Priority {
 			a := taskResourceSum(tasks[i])
 			b := taskResourceSum(tasks[j])
 			return a > b
 		}
+
 		return tasks[i].Priority > tasks[j].Priority
 	})
 	remainingTasks := make([]typeStruct.Task, 0)
@@ -91,7 +99,9 @@ func doKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) {
 	}
 
 	//调用兜底策略，将这些未分配的任务再尝试分配一次，仍有任务未被分配则记录进全局的未分配表中，等待下次调度
+	fmt.Println("贪心前未分配任务：", globalUnassigned)
 	ultimateMethod(uavs, remainingTasks)
+	fmt.Println("贪心后未分配任务：", globalUnassigned)
 }
 
 // 最小一次KM
@@ -100,6 +110,7 @@ func onceKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) []typeStruct.Task {
 
 	// 构建权重矩阵
 	graph := buildGraph(uavs, tasks)
+	fmt.Println("构建权重矩阵：", graph)
 
 	// 调用KM算法
 	kmm := NewKuhnMunkresZero(len(uavs), len(tasks), graph)
@@ -107,6 +118,7 @@ func onceKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) []typeStruct.Task {
 
 	remainingTasks := make([]typeStruct.Task, 0)
 	//第j个任务匹配到第i个无人机上
+	fmt.Println("匹配结果：", kmm.matchV)
 	for j, i := range kmm.matchV {
 		if i == -1 {
 			remainingTasks = append(remainingTasks, tasks[j])
@@ -154,11 +166,12 @@ func calculateWeight(task typeStruct.Task, uav typeStruct.Uav) int {
 	}
 
 	//无人机负载惩罚因子
-	punishFactor := 1.0 / float64(len(uav.LoadedTasks)+1)
+	//punishFactor := 1.0 / float64((len(uav.LoadedTasks) + 1))
+	punishFactor := 1.0 / (float64((len(uav.LoadedTasks) + 1))) * 100
 
 	//权值计算公式：四者相乘，并转为int
 	// 转换为整数权重（放大1000倍防止浮点损失）
-	weight := int(float64(resourceVal) * float64(priority) * commVal * punishFactor * 1000)
+	weight := int(float64(resourceVal) * float64(priority) * commVal * punishFactor)
 	return weight
 }
 
@@ -207,7 +220,7 @@ func calculateCommValue(task typeStruct.Task, uav typeStruct.Uav) float64 {
 		return 0.0
 	}
 
-	return float64(comm%10) / 10.0
+	return float64(comm)
 }
 
 func updateUav(uav *typeStruct.Uav, task typeStruct.Task) {
@@ -253,5 +266,27 @@ func ultimateMethod(uavs []*typeStruct.Uav, tasks []typeStruct.Task) {
 			globalResult[task.TaskID] = loadingUav.Uid
 			updateUav(loadingUav, task)
 		}
+	}
+}
+
+func printUav(uav typeStruct.Uav) {
+	fmt.Printf("UID：%s\t", uav.Uid)
+	fmt.Printf("\t资源：")
+	for i, _ := range uav.Resources {
+		fmt.Printf("(%d:%d)", i, uav.Resources[i])
+	}
+	fmt.Printf("\t下一跳：")
+	for i, _ := range uav.NextUavs {
+		fmt.Printf("(%s:%d)", i, uav.NextUavs[i])
+	}
+	fmt.Printf("\t装载任务：")
+	for i, _ := range uav.LoadedTasks {
+		fmt.Printf("%s\t", uav.LoadedTasks[i].TaskID)
+	}
+	fmt.Println()
+}
+func printUavs(uavs []*typeStruct.Uav) {
+	for uav, _ := range uavs {
+		printUav(*uavs[uav])
 	}
 }

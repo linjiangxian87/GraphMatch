@@ -1,8 +1,9 @@
 package test
 
 import (
-	"GraphMatching/typeStruct"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 /*
@@ -494,7 +495,7 @@ func main() {
 }
 */
 
-
+/*
 package KM
 
 import (
@@ -707,4 +708,146 @@ func ultimateMethod(uavs []*typeStruct.Uav, tasks []typeStruct.Task) {
 			updateUav(selectedUav, task)
 		}
 	}
+}
+
+*/
+
+// 定义任务结构体
+type Task struct {
+	TaskID        string
+	TaskType      int
+	Priority      int
+	Prev          string
+	Next          string
+	NeedResources map[int]int
+}
+
+// 定义无人机结构体
+type Uav struct {
+	Uid         string
+	Resources   map[int]int // 资源id->资源数量
+	NextUavs    map[string]int
+	LoadedTasks []Task
+}
+
+// 随机生成任务和无人机
+func generateTasksAndUavs(n int, m int) ([]*Uav, []Task) {
+	rand.Seed(time.Now().UnixNano())
+
+	// 生成无人机
+	uavs := make([]*Uav, m)
+	for i := 0; i < m; i++ {
+		id := fmt.Sprintf("uav%d", i+1)
+		resources := map[int]int{
+			1: rand.Intn(21) + 80, // 资源1: 80-100
+			2: rand.Intn(21) + 80, // 资源2: 80-100
+		}
+		nextUavs := make(map[string]int)
+		// 每个无人机随机选择2-3个通信目标
+		numConnections := rand.Intn(2) + 2
+		for j := 0; j < numConnections; j++ {
+			otherID := fmt.Sprintf("uav%d", rand.Intn(m)+1)
+			if otherID != id {
+				nextUavs[otherID] = rand.Intn(10) + 1 // 通信能力1-10
+			}
+		}
+		uavs[i] = &Uav{
+			Uid:       id,
+			Resources: resources,
+			NextUavs:  nextUavs,
+		}
+	}
+
+	// 生成任务
+	tasks := make([]Task, n)
+	taskCountByType := map[int]int{
+		0: (n * 40) / 100, // type 0: 40%
+		1: (n * 30) / 100, // type 1: 30%
+		2: (n * 20) / 100, // type 2: 20%
+		3: (n * 10) / 100, // type 3: 10%
+	}
+
+	// 生成任务ID池（用于type≥2的prev任务）
+	taskIDPool := make([]string, 0)
+	currentTaskIndex := 0
+
+	for taskType, count := range taskCountByType {
+		for i := 0; i < count; i++ {
+			id := fmt.Sprintf("task%d", currentTaskIndex+1)
+			currentTaskIndex++
+
+			// 生成优先级（1-10）
+			priority := rand.Intn(9) + 1
+
+			// 生成资源需求（小/中/大）
+			resourceSize := ""
+			switch {
+			case rand.Float32() < 0.7: // 70% 小任务
+				resourceSize = "small"
+			case rand.Float32() < 0.9: // 20% 中任务
+				resourceSize = "medium"
+			default: // 10% 大任务
+				resourceSize = "large"
+			}
+
+			// 生成资源需求值
+			needResources := make(map[int]int)
+			switch resourceSize {
+			case "small":
+				needResources[1] = rand.Intn(11) + 10 // 10-20
+				needResources[2] = rand.Intn(11) + 10
+			case "medium":
+				needResources[1] = rand.Intn(11) + 30 // 30-40
+				needResources[2] = rand.Intn(11) + 30
+			case "large":
+				needResources[1] = rand.Intn(11) + 50 // 50-60
+				needResources[2] = rand.Intn(11) + 50
+			}
+
+			// 处理任务类型
+			prev := ""
+			if taskType >= 2 { // type≥2的任务需要设置prev
+				// 从已生成的任务中随机选择一个prev
+				if len(taskIDPool) > 0 {
+					prevIndex := rand.Intn(len(taskIDPool))
+					prev = taskIDPool[prevIndex]
+				} else {
+					prev = "-1" // 如果没有可用任务，则设为-1
+				}
+			}
+
+			tasks[currentTaskIndex-1] = Task{
+				TaskID:        id,
+				TaskType:      taskType,
+				Priority:      priority,
+				Prev:          prev,
+				NeedResources: needResources,
+			}
+
+			// 将当前任务ID加入池中（供后续type≥2任务使用）
+			taskIDPool = append(taskIDPool, id)
+		}
+	}
+
+	return uavs, tasks
+}
+
+// 打印生成结果（调试用）
+func PrintGeneratedData(uavs []*Uav, tasks []Task) {
+	fmt.Println("=== 无人机信息 ===")
+	for _, uav := range uavs {
+		fmt.Printf("ID: %s, 资源: %v, 通信: %v\n", uav.Uid, uav.Resources, uav.NextUavs)
+	}
+
+	fmt.Println("\n=== 任务信息 ===")
+	for _, task := range tasks {
+		fmt.Printf("ID: %s, 类型: %d, 优先级: %d, Prev: %s, 资源需求: %v\n",
+			task.TaskID, task.TaskType, task.Priority, task.Prev, task.NeedResources)
+	}
+}
+
+func main() {
+	// 示例调用
+	uavs, tasks := generateTasksAndUavs(10, 4) // 生成10个任务，4个无人机
+	PrintGeneratedData(uavs, tasks)
 }

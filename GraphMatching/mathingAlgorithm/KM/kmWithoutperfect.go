@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// TODO 兼容了全零行和全零列，但是会出现可能不为最大匹配的情况
+// TODO 兼容了全零行和全零列和非方阵，但是会出现可能不为最大匹配（最优）的情况
 // 本KM是实现完美匹配
 type KuhnMunkresZero struct {
 	n        int     // 左顶点数
@@ -49,11 +49,13 @@ func NewKuhnMunkresZero(n, m int, graph [][]int) *KuhnMunkresZero {
 			}
 		}
 		// 如果该左顶点没有有效边，顶标设为0
-		if maxA == math.MinInt32 {
-			kmm.A[u] = 0
-		} else {
-			kmm.A[u] = maxA
-		}
+		//if maxA == math.MinInt32 {
+		//	kmm.A[u] = 0
+		//} else {
+		//	kmm.A[u] = maxA
+		//}
+		kmm.A[u] = maxA
+
 	}
 
 	// 初始化匹配数组为未匹配状态
@@ -172,16 +174,15 @@ func (kmm *KuhnMunkresZero) adjust() int {
 // 测试函数
 func Mainn1() {
 	graph := [][]int{
-		{0, 40000, 65000, 40000}, // 左0的边：右0(1), 右1(2), 右2(0)
-		{0, 40000, 65000, 40000}, // 左1的边：右0(4), 右1(1), 右2(0)
-		{0, 5000, 30000, 12000},  // 左2的边：右0(2), 右1(7), 右2(0)
-		{6000, 60000, 85000, 56000},
+		{0, 40000, 65000, 40000},
+		{0, 40000, 65000, 40000},
+		{0, 5000, 30000, 12000},
 	}
 	n := 3 // 左顶点数
-	m := 2 // 右顶点数（即使右2无边，仍需包含）
+	m := 4 // 右顶点数（即使右2无边，仍需包含）
 	kmm := NewKuhnMunkresZero(n, m, graph)
 	total := kmm.MaxWeightMatching()
-	fmt.Println("最大权值总和：", total) // 应输出11
+	fmt.Println("最大权值总和：", total)
 
 	// 输出匹配对（左→右）
 	fmt.Print("匹配对（左→右）：")
