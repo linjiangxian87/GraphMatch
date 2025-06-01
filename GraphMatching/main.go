@@ -1,7 +1,6 @@
 package main
 
 import (
-	"GraphMatching/clusteringAlgorithm"
 	"GraphMatching/contrastExperiment"
 	"GraphMatching/mathingAlgorithm/KM"
 	"GraphMatching/typeStruct"
@@ -80,6 +79,7 @@ func test1() {
 	result, unassigned := KM.GraphMatch(copyuavs, tasks)
 	//result, unassigned := contrastExperiment.Dogreedy(copyuavs, tasks)
 	//result, unassigned := contrastExperiment.SimpleCombination(copyuavs, tasks)
+	//result, unassigned := contrastExperiment.DoAuction(copyuavs, tasks)
 
 	for j, i := range result {
 		fmt.Printf("任务%s->无人机%s\n", j, i)
@@ -139,18 +139,9 @@ func main() {
 
 	//GenerateTasksAndUavs(4, 10)
 
-	//contrastTest(10, 50, 5)
-	//contrastTest(30, 100, 5)
-	//contrastTest(300, 1000, 5)
-
-	//contrastTestWithoutCombination(10, 50, 5)
-	//contrastTestWithoutCombination(100, 300, 5)
-	//contrastTest(10, 50, 5)
-
 	//contrastTest(3, 10, 5)
 	//contrastTestWithoutCombination(25, 100, 5)
 	//contrastTestWithoutCombination(100, 300, 5)
-	clusteringAlgorithm.Main()
 }
 
 //对比实验
@@ -427,18 +418,22 @@ func contrastTest(m int, n int, count int) {
 	//TODO 带组合的
 
 	fmt.Println("对比试验开始----------")
-	var kmTime, greedyTime, combinationTime float64
+	var kmTime, greedyTime, combinationTime, auctionTime float64
 	kmTime = 0.0
 	greedyTime = 0.0
 	combinationTime = 0.0
+	auctionTime = 0.0
 
 	kmClb := 0.0
 	greedyClb := 0.0
 	combinationClb := 0.0
+	auctionClb := 0.0
 
 	kmAssignedRate := 0.0
 	greedyAssignedRate := 0.0
 	combinationAssignedRate := 0.0
+	auctionAssignedRate := 0.0
+
 	for i := 1; i <= count; i++ {
 		fmt.Println("第", i, "次实验")
 		uavs, tasks := GenerateTasksAndUavs(m, n)
@@ -463,6 +458,12 @@ func contrastTest(m int, n int, count int) {
 		time3 := time.Since(start)
 		clb3, assignedRate3 := Assess(uavs, tasks, result3, copyuavs3)
 
+		copyuavs4 := CopyUavs(uavs)
+		start = time.Now()
+		result4, unassigned4 := contrastExperiment.DoAuction(copyuavs4, tasks)
+		time4 := time.Since(start)
+		clb4, assignedRate4 := Assess(uavs, tasks, result4, copyuavs4)
+
 		fmt.Println("图匹配算法结果：")
 		printResult(result1, unassigned1)
 		printUavs(copyuavs1)
@@ -475,9 +476,14 @@ func contrastTest(m int, n int, count int) {
 		printResult(result3, unassigned3)
 		printUavs(copyuavs3)
 
+		fmt.Println("拍卖算法结果：")
+		printResult(result4, unassigned4)
+		printUavs(copyuavs4)
+
 		fmt.Println("图匹配耗时、负载均衡度、任务完成率为：", time1, clb1, assignedRate1)
 		fmt.Println("贪心算法耗时、负载均衡度、任务完成率为：", time2, clb2, assignedRate2)
 		fmt.Println("组合算法耗时、负载均衡度、任务完成率为：", time3, clb3, assignedRate3)
+		fmt.Println("拍卖算法耗时、负载均衡度、任务完成率为：", time4, clb4, assignedRate4)
 
 		kmTime += float64(time1.Milliseconds())
 		kmClb += clb1
@@ -491,11 +497,15 @@ func contrastTest(m int, n int, count int) {
 		combinationClb += clb3
 		combinationAssignedRate += assignedRate3
 
+		auctionTime += float64(time4.Milliseconds())
+		auctionClb += clb4
+		auctionAssignedRate += assignedRate4
 	}
 	fmt.Println("\n\n对比实验结束，结果如下：")
 	fmt.Println("图匹配平均耗时（毫秒）、负载均衡度、任务完成率为：", kmTime/float64(count), kmClb/float64(count), kmAssignedRate/float64(count))
 	fmt.Println("贪心平均耗时（毫秒）、负载均衡度、任务完成率为：", greedyTime/float64(count), greedyClb/float64(count), greedyAssignedRate/float64(count))
 	fmt.Println("组合平均耗时（毫秒）、负载均衡度、任务完成率为：", combinationTime/float64(count), combinationClb/float64(count), combinationAssignedRate/float64(count))
+	fmt.Println("拍卖平均耗时（毫秒）、负载均衡度、任务完成率为：", auctionTime/float64(count), auctionClb/float64(count), auctionAssignedRate/float64(count))
 
 }
 
@@ -504,18 +514,21 @@ func contrastTestWithoutCombination(m int, n int, count int) {
 	//TODO 不带组合的
 
 	fmt.Println("对比试验开始----------")
-	var kmTime, greedyTime float64
+	var kmTime, greedyTime, auctionTime float64
 	kmTime = 0.0
 	greedyTime = 0.0
 	//combinationTime = 0.0
+	auctionTime = 0.0
 
 	kmClb := 0.0
 	greedyClb := 0.0
 	//combinationClb := 0.0
+	auctionClb := 0.0
 
 	kmAssignedRate := 0.0
 	greedyAssignedRate := 0.0
 	//combinationAssignedRate := 0.0
+	auctionAssignedRate := 0.0
 	for i := 1; i <= count; i++ {
 		fmt.Println("第", i, "次实验")
 		uavs, tasks := GenerateTasksAndUavs(m, n)
@@ -540,6 +553,12 @@ func contrastTestWithoutCombination(m int, n int, count int) {
 		//time3 := time.Since(start)
 		//clb3, assignedRate3 := Assess(uavs, tasks, result3, copyuavs3)
 
+		copyuavs4 := CopyUavs(uavs)
+		start = time.Now()
+		result4, unassigned4 := contrastExperiment.DoAuction(copyuavs4, tasks)
+		time4 := time.Since(start)
+		clb4, assignedRate4 := Assess(uavs, tasks, result4, copyuavs4)
+
 		fmt.Println("图匹配算法结果：")
 		printResult(result1, unassigned1)
 		printUavs(copyuavs1)
@@ -552,9 +571,14 @@ func contrastTestWithoutCombination(m int, n int, count int) {
 		//printResult(result3, unassigned3)
 		//printUavs(copyuavs3)
 
+		fmt.Println("拍卖算法结果：")
+		printResult(result4, unassigned4)
+		printUavs(copyuavs4)
+
 		fmt.Println("图匹配耗时、负载均衡度、任务完成率为：", time1, clb1, assignedRate1)
 		fmt.Println("贪心算法耗时、负载均衡度、任务完成率为：", time2, clb2, assignedRate2)
 		//fmt.Println("组合算法耗时、负载均衡度、任务完成率为：", time3, clb3, assignedRate3)
+		fmt.Println("拍卖算法耗时、负载均衡度、任务完成率为：", time4, clb4, assignedRate4)
 
 		kmTime += float64(time1.Milliseconds())
 		kmClb += clb1
@@ -568,11 +592,15 @@ func contrastTestWithoutCombination(m int, n int, count int) {
 		//combinationClb += clb3
 		//combinationAssignedRate += assignedRate3
 
+		auctionTime += float64(time4.Milliseconds())
+		auctionClb += clb4
+		auctionAssignedRate += assignedRate4
 	}
 	fmt.Println("\n\n对比实验结束，结果如下：")
 	fmt.Println("图匹配平均耗时（毫秒）、负载均衡度、任务完成率为：", kmTime/float64(count), kmClb/float64(count), kmAssignedRate/float64(count))
 	fmt.Println("贪心平均耗时（毫秒）、负载均衡度、任务完成率为：", greedyTime/float64(count), greedyClb/float64(count), greedyAssignedRate/float64(count))
 	//fmt.Println("组合平均耗时（毫秒）、负载均衡度、任务完成率为：", combinationTime/float64(count), combinationClb/float64(count), combinationAssignedRate/float64(count))
+	fmt.Println("拍卖平均耗时（毫秒）、负载均衡度、任务完成率为：", auctionTime/float64(count), auctionClb/float64(count), auctionAssignedRate/float64(count))
 
 	//TODO 带组合的
 	/*

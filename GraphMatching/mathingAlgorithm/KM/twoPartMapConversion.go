@@ -106,33 +106,62 @@ func doKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) {
 
 // 最小一次KM
 func onceKM(uavs []*typeStruct.Uav, tasks []typeStruct.Task) []typeStruct.Task {
+	/*
+		fmt.Println("---------------------一次KM开始---------------------------")
+
+		// 构建权重矩阵
+		graph := buildGraph(uavs, tasks)
+		fmt.Println("构建权重矩阵：", graph)
+
+		// 调用KM算法
+		kmm := NewKuhnMunkresZero(len(uavs), len(tasks), graph)
+		kmm.MaxWeightMatching()
+
+		remainingTasks := make([]typeStruct.Task, 0)
+		//第j个任务匹配到第i个无人机上
+		fmt.Println("匹配结果：", kmm.matchV)
+		for j, i := range kmm.matchV {
+			if i == -1 {
+				remainingTasks = append(remainingTasks, tasks[j])
+			} else {
+				updateUav(uavs[i], tasks[j])
+				globalResult[tasks[j].TaskID] = uavs[i].Uid
+			}
+		}
+		fmt.Println("---------------------一次KM结束---------------------------")
+		return remainingTasks
+	*/
+	//补点的
+
 	fmt.Println("---------------------一次KM开始---------------------------")
 
-	// 构建权重矩阵
 	graph := buildGraph(uavs, tasks)
-	fmt.Println("构建权重矩阵：", graph)
+	fmt.Println("构建方阵权重矩阵：", graph)
 
-	// 调用KM算法
-	kmm := NewKuhnMunkresZero(len(uavs), len(tasks), graph)
+	size := len(graph)
+	kmm := NewKuhnMunkresZero(size, size, graph)
 	kmm.MaxWeightMatching()
 
 	remainingTasks := make([]typeStruct.Task, 0)
-	//第j个任务匹配到第i个无人机上
 	fmt.Println("匹配结果：", kmm.matchV)
+
+	// 处理真实无人机和任务的匹配结果
 	for j, i := range kmm.matchV {
-		if i == -1 {
-			remainingTasks = append(remainingTasks, tasks[j])
-		} else {
+		if j < len(tasks) && i < len(uavs) && i != -1 && graph[i][j] > 0 {
 			updateUav(uavs[i], tasks[j])
 			globalResult[tasks[j].TaskID] = uavs[i].Uid
+		} else if j < len(tasks) {
+			remainingTasks = append(remainingTasks, tasks[j])
 		}
 	}
 	fmt.Println("---------------------一次KM结束---------------------------")
 	return remainingTasks
+
 }
 
 // 构建二部图
 func buildGraph(uavs []*typeStruct.Uav, tasks []typeStruct.Task) [][]int {
+
 	n := len(tasks)
 	m := len(uavs)
 	graph := make([][]int, m)
@@ -146,6 +175,37 @@ func buildGraph(uavs []*typeStruct.Uav, tasks []typeStruct.Task) [][]int {
 		}
 	}
 	return graph
+
+	//补点的
+	/*
+		n := max(len(uavs), len(tasks))
+		graph := make([][]int, n)
+
+		for i := 0; i < n; i++ {
+			graph[i] = make([]int, n)
+		}
+
+		for i := range uavs {
+			for j := range tasks {
+				graph[i][j] = calculateWeight(tasks[j], *uavs[i])
+			}
+		}
+
+		// 虚拟节点补充，权值为极低
+		const virtualNodeWeight = -1e9
+		for i := len(uavs); i < n; i++ {
+			for j := 0; j < n; j++ {
+				graph[i][j] = virtualNodeWeight
+			}
+		}
+		for j := len(tasks); j < n; j++ {
+			for i := 0; i < n; i++ {
+				graph[i][j] = virtualNodeWeight
+			}
+		}
+
+		return graph
+	*/
 }
 
 // 计算二部图边权值(暂定为整数)

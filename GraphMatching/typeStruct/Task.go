@@ -5,7 +5,7 @@ type Task struct {
 	TaskType int
 	Priority int
 	Prev     string
-	Next     string
+	//Next     string
 
 	NeedResources map[int]int
 }
